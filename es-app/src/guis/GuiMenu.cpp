@@ -1844,8 +1844,7 @@ void GuiMenu::openSystemSettings()
         s->addEntry(_("MULTISCREENS"), true, [this] { openMultiScreensSettings(); });
 #endif
 
-#ifdef BATOCERA
-#ifdef X86_64
+#if defined(BATOCERA) && defined(X86_64) || defined(SM8250)
 	int red, green, blue;
 	if (ApiSystem::getInstance()->getLED(red, green, blue)) {
 		s->addGroup(_("LED HARDWARE"));
@@ -1889,7 +1888,8 @@ void GuiMenu::openSystemSettings()
 
 		s->addWithLabel(_("BLUE"), blueLEDComponent);
 	}
-	
+#endif
+#if defined(BATOCERA) && defined(X86_64)
 	// LED brightness
 	int ledBrightness;
 	if (ApiSystem::getInstance()->getLEDBrightness(ledBrightness)) {
@@ -1903,7 +1903,6 @@ void GuiMenu::openSystemSettings()
 
 		s->addWithLabel(_("LED BRIGHTNESS"), ledBrightnessComponent);
 	}
-#endif
 #endif
 
 #ifdef BATOCERA
