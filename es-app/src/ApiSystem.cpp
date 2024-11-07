@@ -1367,88 +1367,36 @@ static std::string LED_COLOUR_NAME;
 static std::string LED_BRIGHTNESS_VALUE;
 static std::string LED_MAX_BRIGHTNESS_VALUE;
 
-bool ApiSystem::getLED(int& red, int& green, int& blue)
+bool ApiSystem::getLEDColours(int& red, int& green, int& blue)
 {	
-	#if WIN32
-	return false;
-	#endif
+#if WIN32
+    return false;
+#endif
 
-	if (LED_COLOUR_NAME == "notfound")
-		return false;
+    auto res = executeEnumerationScript("batocera-led-handheld get_color_dec");
+    std::string data = Utils::String::join(res, "\n");
+    if (data.empty())
+        return false;
 
-	if (LED_COLOUR_NAME.empty())
-	{
-		auto directories = Utils::FileSystem::getDirContent("/sys/class/leds");
+    std::string colourValue = data;
+    std::stringstream ss(colourValue);
+    std::string token;
 
-        for (const auto& directory : directories)
-        {
-            if (directory.find("multicolor") != std::string::npos)
-            {
-				std::string ledColourPath = directory + "/multi_intensity";
-				
-				if (Utils::FileSystem::exists(ledColourPath))
-				{
-					LED_COLOUR_NAME = ledColourPath;
+    // Extract red value
+    std::getline(ss, token, ' ');
+    red = std::stoi(token);
 
-					LOG(LogInfo) << "ApiSystem::getLED > LED path resolved to " << directory;
-					break;
-				}
-			}
-		}
-	}
+    // Extract green value
+    std::getline(ss, token, ' ');
+    green = std::stoi(token);
 
-	if (LED_COLOUR_NAME.empty())
-	{
-		LOG(LogInfo) << "ApiSystem::getLED > LED path is not resolved";
+    // Extract blue value
+    std::getline(ss, token);
+    blue = std::stoi(token);
 
-		LED_COLOUR_NAME = "notfound";
-		return false;
-	}
+    LOG(LogInfo) << "ApiSystem::getLEDColours > LED colours are:" << red << " " << green << " " << blue;
 
-    if (Utils::FileSystem::exists(LED_COLOUR_NAME)) {
-        std::string colourValue = Utils::FileSystem::readAllText(LED_COLOUR_NAME);
-        std::stringstream ss(colourValue);
-        std::string token;
-
-        // Extract red value
-        std::getline(ss, token, ' ');
-        red = std::stoi(token);
-
-        // Extract green value
-        std::getline(ss, token, ' ');
-        green = std::stoi(token);
-
-        // Extract blue value
-        std::getline(ss, token);
-        blue = std::stoi(token);
-
-		LOG(LogInfo) << "ApiSystem::getLED > LED colours are:" << red << " " << green << " " << blue;
-
-        return true;
-    }
-}
-
-void ApiSystem::getLEDColours(int& red, int& green, int& blue)
-{
-	if (Utils::FileSystem::exists(LED_COLOUR_NAME)) {
-        std::string colourValue = Utils::FileSystem::readAllText(LED_COLOUR_NAME);
-        std::stringstream ss(colourValue);
-        std::string token;
-
-        // Extract red value
-        std::getline(ss, token, ' ');
-        red = std::stoi(token);
-
-        // Extract green value
-        std::getline(ss, token, ' ');
-        green = std::stoi(token);
-
-        // Extract blue value
-        std::getline(ss, token);
-        blue = std::stoi(token);
-
-		LOG(LogInfo) << "ApiSystem::getLEDColours > LED colours are: " << red << " " << green << " " << blue;
-    }
+    return true;
 }
 
 void ApiSystem::setLEDColours(int red, int green, int blue)
@@ -1456,22 +1404,11 @@ void ApiSystem::setLEDColours(int red, int green, int blue)
 #if WIN32    
     return;
 #endif 
-
-    if (LED_COLOUR_NAME.empty() || LED_COLOUR_NAME == "notfound")
-        return;
-
-    // Ensure RGB values are within valid range
-	if (red < 0) red = 0;
-    if (red > 255) red = 255;
-    if (green < 0) green = 0;
-    if (green > 255) green = 255;
-    if (blue < 0) blue = 0;
-    if (blue > 255) blue = 255;
-
     std::string content = std::to_string(red) + " " + std::to_string(green) + " " + std::to_string(blue);
 
-    // Write LED color values to file
-    Utils::FileSystem::writeAllText(LED_COLOUR_NAME, content);
+    executeScript("batocera-led-handheld set_color_dec " + content);
+
+    LOG(LogInfo) << "ApiSystem::setLEDColours > LED colours are: " << red << " " << green << " " << blue;
 }
 
 bool ApiSystem::getLEDBrightness(int& value)

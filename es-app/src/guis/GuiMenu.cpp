@@ -1846,7 +1846,7 @@ void GuiMenu::openSystemSettings()
 
 #if defined(BATOCERA) && defined(X86_64) || defined(SM8250)
 	int red, green, blue;
-	if (ApiSystem::getInstance()->getLED(red, green, blue)) {
+	if (ApiSystem::getInstance()->getLEDColours(red, green, blue)) {
 		s->addGroup(_("LED HARDWARE"));
 
 		auto redLEDComponent = std::make_shared<SliderComponent>(mWindow, 0.f, 255.f, 1.f);

@@ -249,8 +249,7 @@ public:
 	void	setBrightness(int value);
 
 	// LED RGB sliders
-	bool getLED(int& red, int& green, int& blue);
-	void getLEDColours(int& red, int& green, int& blue);
+	bool getLEDColours(int& red, int& green, int& blue);
 	void setLEDColours(int red, int green, int blue);
 
 	// LED Brightness
