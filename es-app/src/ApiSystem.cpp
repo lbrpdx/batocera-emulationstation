@@ -1363,18 +1363,17 @@ void ApiSystem::setBrightness(int value)
 	Utils::FileSystem::writeAllText(BACKLIGHT_BRIGHTNESS_NAME, content);
 }
 
-static std::string LED_COLOUR_NAME;
-static std::string LED_BRIGHTNESS_VALUE;
-static std::string LED_MAX_BRIGHTNESS_VALUE;
+static LED RGBLED;
 
-bool ApiSystem::getLEDColours(int& red, int& green, int& blue)
+
+bool ApiSystem::initLEDColours(int& red, int& green, int& blue)
 {	
 #if WIN32
     return false;
 #endif
 
     auto res = executeEnumerationScript("batocera-led-handheld get_color_dec");
-    std::string data = Utils::String::join(res, "\n");
+    std::string data = Utils::String::join(res, "");
     if (data.empty())
         return false;
 
@@ -1394,9 +1393,22 @@ bool ApiSystem::getLEDColours(int& red, int& green, int& blue)
     std::getline(ss, token);
     blue = std::stoi(token);
 
-    LOG(LogInfo) << "ApiSystem::getLEDColours > LED colours are:" << red << " " << green << " " << blue;
+    RGBLED.red   = red;
+    RGBLED.green = green;
+    RGBLED.blue  = blue;
 
+    LOG(LogInfo) << "ApiSystem::initLEDColours > LED colours got: " << red << " " << green << " " << blue;
     return true;
+}
+
+void ApiSystem::getLEDColours(int& red, int& green, int& blue)
+{
+#if WIN32
+    return;
+#endif
+    red   = RGBLED.red;
+    green = RGBLED.green;
+    blue  = RGBLED.blue;
 }
 
 void ApiSystem::setLEDColours(int red, int green, int blue)
@@ -1406,9 +1418,13 @@ void ApiSystem::setLEDColours(int red, int green, int blue)
 #endif 
     std::string content = std::to_string(red) + " " + std::to_string(green) + " " + std::to_string(blue);
 
-    executeScript("batocera-led-handheld set_color_dec " + content);
+    RGBLED.red   = red;
+    RGBLED.green = green;
+    RGBLED.blue  = blue;
 
-    LOG(LogInfo) << "ApiSystem::setLEDColours > LED colours are: " << red << " " << green << " " << blue;
+    executeScript("batocera-led-handheld block_color_changes");
+    executeScript("batocera-led-handheld set_color_force_dec " + content);
+    LOG(LogInfo) << "ApiSystem::setLEDColours > LED colours set: " << content;
 }
 
 bool ApiSystem::getLEDBrightness(int& value)
@@ -1417,50 +1433,33 @@ bool ApiSystem::getLEDBrightness(int& value)
     return false;
     #endif
 
-    if (LED_BRIGHTNESS_VALUE == "notfound")
+    auto res = executeEnumerationScript("batocera-led-handheld get_brightness");
+    std::string data = Utils::String::join(res, "");
+    if (data.empty())
         return false;
 
-    if (LED_BRIGHTNESS_VALUE.empty() || LED_MAX_BRIGHTNESS_VALUE.empty())
-    {
-        auto directories = Utils::FileSystem::getDirContent("/sys/class/leds");
+    std::string bValue = data;
+    std::stringstream ss(bValue);
+    std::string token;
+    int cur, bmax;
 
-        for (const auto& directory : directories)
-        {
-            if (directory.find("multicolor") != std::string::npos)
-            {
-                std::string ledBrightnessPath = directory + "/brightness";
-                std::string ledMaxBrightnessPath = directory + "/max_brightness";
+    // Current brightness
+    std::getline(ss, token, ' ');
+    cur = std::stoi(token);
 
-                if (Utils::FileSystem::exists(ledBrightnessPath) && Utils::FileSystem::exists(ledMaxBrightnessPath))
-                {
-                    LED_BRIGHTNESS_VALUE = ledBrightnessPath;
-                    LED_MAX_BRIGHTNESS_VALUE = ledMaxBrightnessPath;
+    // Max brighntess
+    std::getline(ss, token);
+    bmax = std::stoi(token);
 
-                    LOG(LogInfo) << "ApiSystem::getLEDBrightness > LED brightness path resolved to " << directory;
-                    break;
-                }
-            }
-        }
-    }
+    RGBLED.brightness     = cur;
+    RGBLED.max_brightness = bmax;
 
-    if (LED_BRIGHTNESS_VALUE.empty() || LED_MAX_BRIGHTNESS_VALUE.empty())
-    {
-        LOG(LogInfo) << "ApiSystem::getLEDBrightness > LED brightness path is not resolved";
-
-        LED_BRIGHTNESS_VALUE = "notfound";
-        return false;
-    }
-
-    value = 0;
-
-    int max = Utils::String::toInteger(Utils::FileSystem::readAllText(LED_MAX_BRIGHTNESS_VALUE));
-    if (max == 0)
+    LOG(LogInfo) << "ApiSystem::getLEDBrightness: " << data;
+    
+    if ((RGBLED.brightness < 0) || (RGBLED.max_brightness <= 0))
         return false;
 
-    if (Utils::FileSystem::exists(LED_BRIGHTNESS_VALUE))
-        value = Utils::String::toInteger(Utils::FileSystem::readAllText(LED_BRIGHTNESS_VALUE));
-
-    value = (uint32_t) ((value / (float)max * 100.0f) + 0.5f);
+    value = (uint32_t) ((cur / (float)bmax * 100.0f) + 0.5f);
     return true;
 }
 
@@ -1468,21 +1467,17 @@ void ApiSystem::setLEDBrightness(int value) {
 #if WIN32
     return;
 #endif
-
-    if (LED_BRIGHTNESS_VALUE.empty() || LED_BRIGHTNESS_VALUE == "notfound")
+    if ((RGBLED.brightness < 0) || (RGBLED.max_brightness <= 0))
         return;
 
     if (value < 0) value = 0;
-	if (value > 100) value = 100;
+    if (value > 100) value = 100;
 
-    int max = Utils::String::toInteger(Utils::FileSystem::readAllText(LED_MAX_BRIGHTNESS_VALUE));
-    if (max == 0)
-        return;
-
-    float percent = static_cast<float>(value) / 100.0f;
-	int brightnessValue = static_cast<int>(percent * max + 0.5f);
-    std::string content = std::to_string(brightnessValue) + "\n";
-    Utils::FileSystem::writeAllText(LED_BRIGHTNESS_VALUE, content);
+    float percent       = static_cast<float>(value) / 100.0f;
+    int brightnessValue = static_cast<int>(percent * RGBLED.max_brightness + 0.5f);
+    std::string val     = std::to_string(brightnessValue);
+    auto res = executeEnumerationScript("batocera-led-handheld set_brightness "+val);
+    LOG(LogInfo) << "ApiSystem::setLEDBrightness: " << val;
 }
 
 std::vector<std::string> ApiSystem::getWifiNetworks(bool scan)

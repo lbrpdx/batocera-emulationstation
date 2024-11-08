@@ -1846,50 +1846,51 @@ void GuiMenu::openSystemSettings()
 
 #if defined(BATOCERA) && defined(X86_64) || defined(SM8250)
 	int red, green, blue;
-	if (ApiSystem::getInstance()->getLEDColours(red, green, blue)) {
+	if (ApiSystem::getInstance()->initLEDColours(red, green, blue)) {
+		std::string col = SystemConf::getInstance()->get("led.colour");
+		std::vector<std::string> tokens = Utils::String::split(col, ' ');
+		if (tokens.size() == 3) {
+			red   = std::stoi(tokens.at(0));
+			green = std::stoi(tokens.at(1));
+			blue  = std::stoi(tokens.at(2));
+		}
 		s->addGroup(_("LED HARDWARE"));
-
 		auto redLEDComponent = std::make_shared<SliderComponent>(mWindow, 0.f, 255.f, 1.f);
-		redLEDComponent->setValue(red);
+		redLEDComponent->setValue(static_cast<float>(red));
 		redLEDComponent->setOnValueChanged([](const float &newVal) {
 			int red, green, blue;
 			ApiSystem::getInstance()->getLEDColours(red, green, blue);
 			int redInt = static_cast<int>(newVal);
-			ApiSystem::getInstance()->setLEDColours(redInt, green, blue);
 			std::string colourString = std::to_string(redInt) + " " + std::to_string(green) + " " + std::to_string(blue);
+			ApiSystem::getInstance()->setLEDColours(redInt, green, blue);
 			SystemConf::getInstance()->set("led.colour", colourString);
 		});
-
 		s->addWithLabel(_("RED"), redLEDComponent);
 
 		auto greenLEDComponent = std::make_shared<SliderComponent>(mWindow, 0.f, 255.f, 1.f);
-		greenLEDComponent->setValue(green);
+		greenLEDComponent->setValue(static_cast<float>(green));
 		greenLEDComponent->setOnValueChanged([](const float &newVal) {
 			int red, green, blue;
 			ApiSystem::getInstance()->getLEDColours(red, green, blue);
 			int greenInt = static_cast<int>(newVal);
-			ApiSystem::getInstance()->setLEDColours(red, greenInt, blue);
 			std::string colourString = std::to_string(red) + " " + std::to_string(greenInt) + " " + std::to_string(blue);
+			ApiSystem::getInstance()->setLEDColours(red, greenInt, blue);
 			SystemConf::getInstance()->set("led.colour", colourString);
 		});
-
 		s->addWithLabel(_("GREEN"), greenLEDComponent);
 
 		auto blueLEDComponent = std::make_shared<SliderComponent>(mWindow, 0.f, 255.f, 1.f);
-		blueLEDComponent->setValue(blue);
+		blueLEDComponent->setValue(static_cast<float>(blue));
 		blueLEDComponent->setOnValueChanged([](const float &newVal) {
 			int red, green, blue;
 			ApiSystem::getInstance()->getLEDColours(red, green, blue);
 			int blueInt = static_cast<int>(newVal);
-			ApiSystem::getInstance()->setLEDColours(red, green, blueInt);
 			std::string colourString = std::to_string(red) + " " + std::to_string(green) + " " + std::to_string(blueInt);
+			ApiSystem::getInstance()->setLEDColours(red, green, blueInt);
 			SystemConf::getInstance()->set("led.colour", colourString);
 		});
-
 		s->addWithLabel(_("BLUE"), blueLEDComponent);
 	}
-#endif
-#if defined(BATOCERA) && defined(X86_64)
 	// LED brightness
 	int ledBrightness;
 	if (ApiSystem::getInstance()->getLEDBrightness(ledBrightness)) {

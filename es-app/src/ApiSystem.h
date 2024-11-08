@@ -88,6 +88,15 @@ struct Service
   bool enabled;
 };
 
+struct LED
+{
+  int red;
+  int green;
+  int blue;
+  int brightness;
+  int max_brightness;
+};
+
 class ApiSystem : public IPdfHandler, public IExternalActivity
 {
 public:
@@ -249,7 +258,8 @@ public:
 	void	setBrightness(int value);
 
 	// LED RGB sliders
-	bool getLEDColours(int& red, int& green, int& blue);
+	bool initLEDColours(int& red, int& green, int& blue);
+	void getLEDColours(int& red, int& green, int& blue);
 	void setLEDColours(int red, int green, int blue);
 
 	// LED Brightness
